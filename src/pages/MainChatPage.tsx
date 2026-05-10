@@ -1,22 +1,15 @@
 import { AppLayout } from '../component/layout/AppLayout';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { useParams } from 'react-router-dom';
+import { ChatContainer } from '../component/chat/ChatContainer';
 
 const MainChatPage = () => {
-  const { projectId } = useParams();
+  const { projectId, sessionId } = useParams();
 
   return (
     <AppLayout>
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
-        {projectId ? (
-          <Box sx={{ flex: 1, p: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography color="text.secondary">Chat interface for {projectId} will go here.</Typography>
-          </Box>
-        ) : (
-          <Box sx={{ flex: 1, p: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography color="text.secondary">Select or create a task to start chatting.</Typography>
-          </Box>
-        )}
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', bgcolor: 'background.default', height: '100%' }}>
+        <ChatContainer projectId={projectId} sessionId={sessionId} />
       </Box>
     </AppLayout>
   );

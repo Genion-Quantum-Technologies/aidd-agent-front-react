@@ -14,6 +14,8 @@ import RegisterPage from './pages/RegisterPage';
 import UserProfilePage from './pages/UserProfilePage';
 import MainChatPage from './pages/MainChatPage';
 
+import HelpPage from './pages/HelpPage';
+
 function App() {
   return (
     <AuthProvider>
@@ -25,13 +27,14 @@ function App() {
               {/* Public routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
-              
+
               {/* Protected routes */}
               <Route element={<AuthGuard />}>
                 <Route path="/profile" element={<UserProfilePage />} />
+                <Route path="/help" element={<HelpPage />} />
                 <Route path="/projects" element={<MainChatPage />} />
                 <Route path="/projects/:projectId" element={<MainChatPage />} />
-                <Route path="/projects/:projectId/tasks/:taskId" element={<MainChatPage />} />
+                <Route path="/projects/:projectId/sessions/:sessionId" element={<MainChatPage />} />
               </Route>
 
               {/* Catch-all */}

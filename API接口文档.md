@@ -10,14 +10,15 @@
 
 1. [通用说明](#1-通用说明)
 2. [认证 API (`/auth`)](#2-认证-api)
-3. [会话 API (`/sessions`)](#3-会话-api)
-4. [消息 API (`/sessions/{id}/messages`)](#4-消息-api)
-5. [文件上传 API (`/files`)](#5-文件上传-api)
-6. [靶点发现 API (`/targets`)](#6-靶点发现-api)
-7. [追踪 API (`/messages/{id}/traces`)](#7-追踪-api)
-8. [流式对话 API (`/chat`) — SSE](#8-流式对话-api--sse)
-9. [健康检查](#9-健康检查)
-10. [通用错误码](#10-通用错误码)
+4. [Projects API (`/projects`)](#4-Projects-api)
+3. [会话 API (`/projects/{project_id}/sessions`)](#3-会话-api)
+5. [消息 API (`/projects/{project_id}/sessions/{session_id}/messages`)](#5-消息-api)
+6. [文件上传 API (`/files`)](#6-文件上传-api)
+7. [靶点发现 API (`/targets`)](#7-靶点发现-api)
+8. [追踪 API (`/messages/{id}/traces`)](#8-追踪-api)
+9. [流式对话 API (`/chat`) — SSE](#9-流式对话-api--sse)
+10. [健康检查](#10-健康检查)
+11. [通用错误码](#11-通用错误码)
 
 ---
 
@@ -154,7 +155,7 @@ GET /api/v1/auth/me
 ### 3.1 获取会话列表
 
 ```
-GET /api/v1/sessions
+GET /api/v1/projects/{project_id}/sessions
 ```
 
 **响应 `200 OK`：**
@@ -177,7 +178,7 @@ GET /api/v1/sessions
 ### 3.2 创建会话
 
 ```
-POST /api/v1/sessions
+POST /api/v1/projects/{project_id}/sessions
 ```
 
 **请求体：**
@@ -210,7 +211,7 @@ POST /api/v1/sessions
 ### 3.3 重命名会话
 
 ```
-PATCH /api/v1/sessions/{session_id}
+PATCH /api/v1/projects/{project_id}/sessions/{session_id}
 ```
 
 **路径参数：**
@@ -260,13 +261,14 @@ DELETE /api/v1/sessions/{session_id}
 ### 4.1 获取会话历史消息
 
 ```
-GET /api/v1/sessions/{session_id}/messages
+GET /api/v1/projects/{project_id}/sessions/{session_id}/messages
 ```
 
 **路径参数：**
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
+| `project_id` | UUID | 项目 ID |
 | `session_id` | UUID | 会话 ID |
 
 **查询参数：**
@@ -285,7 +287,8 @@ GET /api/v1/sessions/{session_id}/messages
     "content": "请帮我分析 EGFR 靶点的相关文献",
     "metadata": {},
     "token_count": 25,
-    "created_at": "2026-05-05T07:01:00Z"
+    "created_at": "2026-05-05T07:01:00Z",
+    "is_pinned": false
   },
   {
     "id": "msg-uuid-002",
@@ -295,7 +298,8 @@ GET /api/v1/sessions/{session_id}/messages
       "grounding_sources": ["https://pubmed.ncbi.nlm.nih.gov/12345678"]
     },
     "token_count": 1200,
-    "created_at": "2026-05-05T07:01:15Z"
+    "created_at": "2026-05-05T07:01:15Z",
+    "is_pinned": false
   }
 ]
 ```
@@ -313,7 +317,7 @@ GET /api/v1/sessions/{session_id}/messages
 ### 5.1 上传文件
 
 ```
-POST /api/v1/sessions/{session_id}/files
+POST /api/v1/projects/{project_id}/sessions/{session_id}/files
 ```
 
 **请求格式：** `multipart/form-data`
@@ -342,7 +346,7 @@ POST /api/v1/sessions/{session_id}/files
 **cURL 示例：**
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/sessions/{session_id}/files" \
+curl -X POST "http://localhost:8000/api/v1/projects/{project_id}/sessions/{session_id}/files" \
   -H "Authorization: Bearer <token>" \
   -F "file=@/path/to/paper.pdf" \
   -F "description=EGFR inhibitor review paper"
@@ -360,7 +364,7 @@ curl -X POST "http://localhost:8000/api/v1/sessions/{session_id}/files" \
   "size": 2048576,
   "description": "EGFR inhibitor review paper",
   "s3_key": "sessions/550e8400-.../files/file-uuid-001/paper.pdf",
-  "download_url": "http://localhost:8000/api/v1/sessions/.../files/file-uuid-001/download",
+  "download_url": "http://localhost:8000/api/v1/projects/{project_id}/sessions/.../files/file-uuid-001/download",
   "created_at": "2026-05-05T07:05:00Z"
 }
 ```
@@ -381,7 +385,7 @@ curl -X POST "http://localhost:8000/api/v1/sessions/{session_id}/files" \
 ### 5.2 获取会话文件列表
 
 ```
-GET /api/v1/sessions/{session_id}/files
+GET /api/v1/projects/{project_id}/sessions/{session_id}/files
 ```
 
 **响应 `200 OK`：**
@@ -396,7 +400,7 @@ GET /api/v1/sessions/{session_id}/files
     "mime_type": "application/pdf",
     "size": 2048576,
     "description": "EGFR inhibitor review paper",
-    "download_url": "http://localhost:8000/api/v1/sessions/.../files/file-uuid-001/download",
+    "download_url": "http://localhost:8000/api/v1/projects/{project_id}/sessions/.../files/file-uuid-001/download",
     "created_at": "2026-05-05T07:05:00Z"
   }
 ]
@@ -407,7 +411,7 @@ GET /api/v1/sessions/{session_id}/files
 ### 5.3 获取单个文件信息
 
 ```
-GET /api/v1/sessions/{session_id}/files/{file_id}
+GET /api/v1/projects/{project_id}/sessions/{session_id}/files/{file_id}
 ```
 
 **响应 `200 OK`：** 返回单个文件对象（格式同列表项）
@@ -436,7 +440,7 @@ GET /api/v1/sessions/{session_id}/files/{file_id}/download
 ### 5.5 删除文件
 
 ```
-DELETE /api/v1/sessions/{session_id}/files/{file_id}
+DELETE /api/v1/projects/{project_id}/sessions/{session_id}/files/{file_id}
 ```
 
 **响应 `204 No Content`：** 无响应体
@@ -457,14 +461,16 @@ DELETE /api/v1/sessions/{session_id}/files/{file_id}
 ```
 SeaweedFS (S3 兼容)
 └── aidd-data/                          (Bucket)
-    └── sessions/{session_id}/
-        ├── messages.jsonl              (对话记录)
-        ├── memory.md                   (上下文压缩摘要)
-        ├── files/                      ⭐ 新增：用户上传文件
-        │   ├── {file_id}/{filename}    (原始文件)
-        │   └── ...
-        └── traces/                     (Agent Trace)
-            └── raw_outputs/
+    └── projects/
+        └── {project_id}/
+            └── sessions/{session_id}/
+            ├── messages.jsonl              (对话记录)
+            ├── memory.md                   (上下文压缩摘要)
+            ├── files/                      ⭐ 新增：用户上传文件
+            │   ├── {file_id}/{filename}    (原始文件)
+            │   └── ...
+            └── traces/                     (Agent Trace)
+                └── raw_output/
 ```
 
 **PostgreSQL 文件元数据表：**
@@ -472,6 +478,7 @@ SeaweedFS (S3 兼容)
 ```sql
 CREATE TABLE session_files (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id  UUID NOT NULL,
     session_id  UUID NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     filename    VARCHAR(255) NOT NULL,
@@ -614,7 +621,7 @@ GET /api/v1/messages/{message_id}/traces
       "arguments": { "query": "EGFR inhibitor 2025", "max_papers": 5 }
     },
     "tool_result": { "total": 5, "papers": [...] },
-    "raw_data_uri": "s3://aidd-data/sessions/.../traces/raw_outputs/tc-001.json",
+    "raw_data_uri": "s3://aidd-data/projects{project_id}/sessions/{session_id}/traces/raw_outputs/tc-001.json",
     "latency_ms": 1200,
     "created_at": "2026-05-05T07:01:12Z"
   }
@@ -786,6 +793,7 @@ GET /health
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `id` | UUID | 主键 |
+| `project_id` | UUID → projects.id | 所属项目 |
 | `session_id` | UUID → sessions.id | 所属会话 |
 | `user_id` | UUID → users.id | 上传用户 |
 | `filename` | string(255) | 存储文件名 |
