@@ -163,7 +163,7 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
         )}
         <div ref={messagesEndRef} />
       </Box>
-      <ChatInput onSend={handleSend} disabled={isStreaming || !projectId || !sessionId} />
+      <ChatInput onSend={handleSend} disabled={isStreaming || !projectId || !sessionId} isLoading={isStreaming} />
     </Box>
   );
 };

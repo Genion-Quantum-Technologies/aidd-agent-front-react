@@ -5,9 +5,10 @@ import SendIcon from '@mui/icons-material/Send';
 interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
+  isLoading?: boolean;
 }
 
-export const ChatInput = ({ onSend, disabled }: ChatInputProps) => {
+export const ChatInput = ({ onSend, disabled, isLoading }: ChatInputProps) => {
   const [input, setInput] = useState('');
 
   const handleSend = () => {
@@ -60,7 +61,7 @@ export const ChatInput = ({ onSend, disabled }: ChatInputProps) => {
             }
           }}
         >
-          {disabled ? <CircularProgress size={24} color="inherit" /> : <SendIcon />}
+          {isLoading ? <CircularProgress size={24} color="inherit" /> : <SendIcon />}
         </IconButton>
       </Box>
     </Box>

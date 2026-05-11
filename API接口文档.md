@@ -673,6 +673,7 @@ POST /api/v1/chat
 | `thinking_delta` | 模型思考中 | `delta` | `<thought>` 标签内内容（前端折叠显示） |
 | `tool_use_start` | 工具调用开始 | `tool_name`, `tool_call_id`, `args` | 前端显示 "🔍 Searching PubMed..." |
 | `tool_use_end` | 工具调用完成 | `tool_call_id`, `result_summary` | 前端更新为完成状态 |
+| `research_progress` | 长耗时工具阶段进度 | `phase`, `target` | 仅 `run_target_discovery` 触发；`phase` 为子图节点名（如 `composition` / `literature` / `pathway` / `drugs` / `synthesize`），前端可显示阶段化进度条 |
 | `citation` | 引用产生 | `index`, `url`, `title` | 角标引用 |
 | `message_end` | 生成结束 | `message_id`, `usage` | Token 用量统计 |
 | `error` | 出错 | `code`, `message` | 错误信息 |
@@ -697,6 +698,26 @@ data: {"event": "citation", "data": {"index": 1, "url": "https://pubmed.ncbi.nlm
 data: {"event": "message_end", "data": {"message_id": "msg-uuid-002", "usage": {"input_tokens": 1234, "output_tokens": 567}}}
 
 data: [DONE]
+```
+
+#### 8.3.1 深度靶点调研事件流示例（`run_target_discovery`）
+
+LLM 检测到用户意图后会自动调用 `run_target_discovery` 工具，整体耗时 2–5 分钟。后端会在子图阶段切换时发送 `research_progress` 事件，并在工具结束时把生成的报告作为 SessionFile 持久化（`report_file_id` 出现在 `tool_use_end.result_summary` 中，并随最终 assistant 消息写入 `file_ids`）。
+
+```
+data: {"event": "tool_use_start", "data": {"tool_name": "run_target_discovery", "tool_call_id": "call-td-1", "args": {"target_query": "TARDBP"}}}
+
+data: {"event": "research_progress", "data": {"phase": "composition", "target": "TARDBP"}}
+
+data: {"event": "research_progress", "data": {"phase": "literature", "target": "TARDBP"}}
+
+data: {"event": "research_progress", "data": {"phase": "pathway", "target": "TARDBP"}}
+
+data: {"event": "research_progress", "data": {"phase": "drugs", "target": "TARDBP"}}
+
+data: {"event": "research_progress", "data": {"phase": "synthesize", "target": "TARDBP"}}
+
+data: {"event": "tool_use_end", "data": {"tool_call_id": "call-td-1", "result_summary": "{\"status\":\"ok\",\"target\":\"TARDBP\",\"report_file_id\":\"...\",\"counts\":{...}}"}}
 ```
 
 ### 8.4 停止生成
