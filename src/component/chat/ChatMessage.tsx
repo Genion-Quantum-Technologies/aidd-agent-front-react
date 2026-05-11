@@ -1,16 +1,19 @@
-import { Box, Avatar, Paper } from '@mui/material';
+import { Box, Avatar, Paper, Stack } from '@mui/material';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import PersonIcon from '@mui/icons-material/Person';
 import ReactMarkdown from 'react-markdown';
+import type { MessageAttachment } from '../../service/sessions';
+import { ReportAttachment } from './ReportAttachment';
 
 interface ChatMessageProps {
   role: 'user' | 'ai';
   content: string;
   isThinking?: boolean;
   thinkingContent?: string;
+  attachments?: MessageAttachment[];
 }
 
-export const ChatMessage = ({ role, content, isThinking, thinkingContent }: ChatMessageProps) => {
+export const ChatMessage = ({ role, content, isThinking, thinkingContent, attachments }: ChatMessageProps) => {
   const isAi = role === 'ai';
 
   return (
@@ -51,6 +54,13 @@ export const ChatMessage = ({ role, content, isThinking, thinkingContent }: Chat
             isThinking ? <Box sx={{ fontStyle: 'italic', opacity: 0.7, py: 1 }}>Thinking...</Box> : null
           )}
         </Paper>
+        {attachments && attachments.length > 0 && (
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+            {attachments.map((f) => (
+              <ReportAttachment key={f.id} file={f} />
+            ))}
+          </Stack>
+        )}
         {isThinking && thinkingContent && (
           <Box sx={{ 
             fontSize: '0.75rem', 

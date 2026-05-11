@@ -23,6 +23,15 @@ export interface SessionFile {
   created_at: string;
 }
 
+export interface MessageAttachment {
+  id: string;
+  filename: string;
+  original_filename: string;
+  mime_type: string;
+  size: number;
+  download_url: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system' | 'tool';
@@ -30,6 +39,8 @@ export interface Message {
   metadata?: Record<string, any>;
   token_count?: number;
   created_at: string;
+  file_ids?: string[];
+  attachments?: MessageAttachment[];
 }
 
 export const sessionService = {

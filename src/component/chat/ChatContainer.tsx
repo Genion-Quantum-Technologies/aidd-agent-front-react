@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { Box, CircularProgress } from '@mui/material';
+import { useQueryClient } from '@tanstack/react-query';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
-import { streamChat } from '../../service/chat';
+import { streamChat, type CreatedFile } from '../../service/chat';
 import { useMessages } from '../../service/queries';
+import { useReportViewer } from '../../context/ReportViewerContext';
+import type { MessageAttachment } from '../../service/sessions';
 
 interface Message {
   id: string;
@@ -11,6 +14,7 @@ interface Message {
   content: string;
   isThinking?: boolean;
   thinkingContent?: string;
+  attachments?: MessageAttachment[];
 }
 
 interface ChatContainerProps {
@@ -19,9 +23,11 @@ interface ChatContainerProps {
 }
 
 export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
+  const queryClient = useQueryClient();
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { openFile } = useReportViewer();
 
   // Fetch initial messages when sessionId changes
   const { data: initialMessages, isLoading: isFetchingMessages } = useMessages(projectId || null, sessionId || null);
@@ -103,6 +109,32 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
             )
           );
         },
+        onFileCreated: (file: CreatedFile) => {
+          // Append the file as a message attachment so the chip renders
+          // immediately while the LLM is still streaming its short reply.
+          const attachment: MessageAttachment = {
+            id: file.file_id,
+            filename: file.filename,
+            original_filename: file.filename,
+            mime_type: file.mime_type,
+            size: 0,
+            download_url: file.download_url,
+          };
+          setLocalMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === aiMessageId
+                ? {
+                    ...msg,
+                    attachments: [...(msg.attachments || []), attachment],
+                  }
+                : msg
+            )
+          );
+          // Auto-open Markdown reports in the side viewer (Gemini-style).
+          if (file.kind === 'report_md' || file.mime_type === 'text/markdown') {
+            openFile(attachment);
+          }
+        },
         onDone: () => {
           setLocalMessages((prev) => 
             prev.map((msg) => 
@@ -112,6 +144,7 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
             )
           );
           setIsStreaming(false);
+          queryClient.invalidateQueries({ queryKey: ['messages', projectId ?? null, sessionId ?? null] });
         },
         onError: (error) => {
           console.error('Chat error:', error);
@@ -158,6 +191,7 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
               content={msg.content} 
               isThinking={msg.isThinking}
               thinkingContent={msg.thinkingContent}
+              attachments={msg.attachments}
             />
           ))
         )}

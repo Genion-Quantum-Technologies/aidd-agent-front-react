@@ -3,6 +3,16 @@ export interface ChatSSEEvent {
   data: any;
 }
 
+export interface CreatedFile {
+  file_id: string;
+  filename: string;
+  mime_type: string;
+  /** Tool-specific kind hint (e.g. "report_md", "report_json"). */
+  kind?: string;
+  /** Server-provided absolute or relative download URL. */
+  download_url: string;
+}
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
 export async function streamChat(
@@ -17,6 +27,7 @@ export async function streamChat(
     onToolStart: (name: string, id: string, args: any) => void;
     onToolEnd: (id: string, summary: string) => void;
     onCitation: (index: number, url: string, title: string) => void;
+    onFileCreated?: (file: CreatedFile) => void;
     onDone: (messageId: string) => void;
     onError: (error: string) => void;
     signal?: AbortSignal;
@@ -87,6 +98,15 @@ export async function streamChat(
               break;
             case 'citation':
               options.onCitation(event.data.index, event.data.url, event.data.title);
+              break;
+            case 'file_created':
+              options.onFileCreated?.({
+                file_id: event.data.file_id,
+                filename: event.data.filename,
+                mime_type: event.data.mime_type,
+                kind: event.data.kind,
+                download_url: event.data.download_url,
+              });
               break;
             case 'message_end':
               options.onDone(event.data.message_id);
