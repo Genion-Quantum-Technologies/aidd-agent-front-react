@@ -69,6 +69,7 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
 
     try {
       await streamChat(sessionId, content, {
+        projectId,
         onDelta: (text) => {
           setLocalMessages((prev) => 
             prev.map((msg) => 

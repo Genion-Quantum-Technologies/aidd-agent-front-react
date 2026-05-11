@@ -71,10 +71,10 @@ export const useMessages = (projectId: string | null, sessionId: string | null) 
   });
 };
 
-export const useFiles = (sessionId: string | null) => {
+export const useFiles = (projectId: string | null, sessionId: string | null) => {
   return useQuery({
-    queryKey: ['files', sessionId],
-    queryFn: () => sessionService.getFiles(sessionId!),
-    enabled: !!sessionId,
+    queryKey: ['files', projectId, sessionId],
+    queryFn: () => sessionService.getFiles(projectId!, sessionId!),
+    enabled: !!projectId && !!sessionId,
   });
 };

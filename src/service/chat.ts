@@ -9,6 +9,7 @@ export async function streamChat(
   sessionId: string,
   content: string,
   options: {
+    projectId?: string;
     planMode?: boolean;
     fileIds?: string[];
     onDelta: (text: string) => void;
@@ -32,6 +33,7 @@ export async function streamChat(
       },
       body: JSON.stringify({
         session_id: sessionId,
+        project_id: options.projectId,
         content,
         plan_mode: options.planMode || false,
         file_ids: options.fileIds || [],
