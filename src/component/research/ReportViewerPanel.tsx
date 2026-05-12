@@ -193,7 +193,7 @@ export const ReportViewerPanel = () => {
 
   const handleOpenInNewTab = useCallback(() => {
     if (!currentFile) return;
-    withPresignedUrl(currentFile.download_url, (url) => window.open(url, '_blank', 'noopener'));
+    withPresignedUrl(currentFile.download_url, (url) => { window.open(url, '_blank', 'noopener'); });
   }, [currentFile]);
 
   const handleDownload = useCallback(async () => {
@@ -239,10 +239,12 @@ export const ReportViewerPanel = () => {
       open={isOpen}
       onClose={close}
       ModalProps={{ keepMounted: false }}
-      PaperProps={{
-        sx: {
-          width: { xs: '100%', sm: '70vw', md: '55vw' },
-          maxWidth: 1100,
+      slotProps={{
+        paper: {
+          sx: {
+            width: { xs: '100%', sm: '70vw', md: '55vw' },
+            maxWidth: 1100,
+          },
         },
       }}
     >

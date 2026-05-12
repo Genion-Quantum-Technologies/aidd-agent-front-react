@@ -55,7 +55,7 @@ export const ChatMessage = ({ role, content, isThinking, thinkingContent, attach
           )}
         </Paper>
         {attachments && attachments.length > 0 && (
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+          <Stack direction="row" spacing={1} sx={{ mt: 0.5, flexWrap: 'wrap', gap: 1 }}>
             {attachments.map((f) => (
               <ReportAttachment key={f.id} file={f} />
             ))}
