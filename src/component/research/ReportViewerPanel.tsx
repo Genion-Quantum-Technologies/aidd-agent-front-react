@@ -14,7 +14,6 @@ import DownloadIcon from '@mui/icons-material/Download';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import html2pdf from 'html2pdf.js';
 import { useReportViewer } from '../../context/ReportViewerContext';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
@@ -198,26 +197,33 @@ export const ReportViewerPanel = () => {
   }, [currentFile]);
 
   const handleDownload = useCallback(async () => {
-    if (!currentFile || !contentRef.current) return;
+    if (!currentFile) return;
     setDownloading(true);
     try {
-      // Clone the rendered content so html2pdf doesn't mutate the live DOM
-      const clone = contentRef.current.cloneNode(true) as HTMLElement;
-      // Derive PDF filename from original filename (.md → .pdf)
+      // Request PDF from backend (remark-renderer microservice)
+      const pdfUrl = resolveApiUrl(
+        currentFile.download_url.replace('/download', '/pdf')
+      );
+      const token = localStorage.getItem('token');
+      const res = await fetch(pdfUrl, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const blob = await res.blob();
       const pdfFilename = currentFile.original_filename.replace(/\.md$/i, '') + '.pdf';
 
-      const options = {
-        filename: pdfFilename,
-        margin: [15, 15, 15, 15] as [number, number, number, number],  // mm
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
-      };
-
-      await html2pdf().set(options).from(clone).save();
+      // Trigger browser download via temporary <a> element
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = pdfFilename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (e: any) {
-      console.error('PDF generation failed:', e);
+      console.error('PDF download failed:', e);
     } finally {
       setDownloading(false);
     }
@@ -270,9 +276,11 @@ export const ReportViewerPanel = () => {
                 </IconButton>
               </Tooltip>
               <Tooltip title="Download PDF">
-                <IconButton size="small" onClick={handleDownload} disabled={downloading || loading}>
-                  {downloading ? <CircularProgress size={18} /> : <DownloadIcon fontSize="small" />}
-                </IconButton>
+                <span>
+                  <IconButton size="small" onClick={handleDownload} disabled={downloading || loading}>
+                    {downloading ? <CircularProgress size={18} /> : <DownloadIcon fontSize="small" />}
+                  </IconButton>
+                </span>
               </Tooltip>
             </>
           )}

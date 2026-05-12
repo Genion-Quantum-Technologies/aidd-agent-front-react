@@ -135,6 +135,9 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
             openFile(attachment);
           }
         },
+        onTitleUpdated: () => {
+          queryClient.invalidateQueries({ queryKey: ['sessions', projectId] });
+        },
         onDone: () => {
           setLocalMessages((prev) => 
             prev.map((msg) => 

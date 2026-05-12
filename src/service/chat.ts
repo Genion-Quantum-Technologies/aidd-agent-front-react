@@ -28,6 +28,7 @@ export async function streamChat(
     onToolEnd: (id: string, summary: string) => void;
     onCitation: (index: number, url: string, title: string) => void;
     onFileCreated?: (file: CreatedFile) => void;
+    onTitleUpdated?: (title: string) => void;
     onDone: (messageId: string) => void;
     onError: (error: string) => void;
     signal?: AbortSignal;
@@ -107,6 +108,9 @@ export async function streamChat(
                 kind: event.data.kind,
                 download_url: event.data.download_url,
               });
+              break;
+            case 'session_title_updated':
+              options.onTitleUpdated?.(event.data.title);
               break;
             case 'message_end':
               options.onDone(event.data.message_id);
