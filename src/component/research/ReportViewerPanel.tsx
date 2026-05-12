@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Drawer,
   Box,
@@ -14,6 +14,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import html2pdf from 'html2pdf.js';
 import { useReportViewer } from '../../context/ReportViewerContext';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
@@ -22,12 +23,34 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api
  * Resolve a possibly relative `download_url` (e.g. "/api/v1/...") into a
  * fully-qualified URL pointing at the API host.
  */
-function resolveDownloadUrl(url: string): string {
+function resolveApiUrl(url: string): string {
   if (/^https?:\/\//.test(url)) return url;
-  // download_url from the backend looks like "/api/v1/projects/.../download".
-  // API_BASE already includes "/api/v1", so strip it to avoid duplication.
   const base = API_BASE.replace(/\/api\/v1\/?$/, '');
   return `${base}${url}`;
+}
+
+/**
+ * Replace `/download` suffix with `/presigned-url` to get the JSON endpoint
+ * that returns {"url": "<s3-presigned>"} without requiring the browser to
+ * pass the Authorization header through a redirect.
+ */
+function toPresignedUrlEndpoint(downloadUrl: string): string {
+  return resolveApiUrl(downloadUrl.replace(/\/download$/, '/presigned-url'));
+}
+
+/**
+ * Fetch a presigned S3 URL for the file using the stored JWT, then invoke
+ * `action(presignedUrl)`.
+ */
+async function withPresignedUrl(downloadUrl: string, action: (url: string) => void | Promise<void>) {
+  const token = localStorage.getItem('token');
+  const endpoint = toPresignedUrlEndpoint(downloadUrl);
+  const res = await fetch(endpoint, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const { url } = await res.json();
+  action(url);
 }
 
 /**
@@ -136,6 +159,8 @@ export const ReportViewerPanel = () => {
   const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!currentFile || !isOpen) return;
@@ -144,8 +169,8 @@ export const ReportViewerPanel = () => {
     setError(null);
     setContent('');
 
-    const url = resolveDownloadUrl(currentFile.download_url);
     const token = localStorage.getItem('token');
+    const url = resolveApiUrl(currentFile.download_url);
 
     (async () => {
       try {
@@ -166,6 +191,37 @@ export const ReportViewerPanel = () => {
       cancelled = true;
     };
   }, [currentFile, isOpen]);
+
+  const handleOpenInNewTab = useCallback(() => {
+    if (!currentFile) return;
+    withPresignedUrl(currentFile.download_url, (url) => window.open(url, '_blank', 'noopener'));
+  }, [currentFile]);
+
+  const handleDownload = useCallback(async () => {
+    if (!currentFile || !contentRef.current) return;
+    setDownloading(true);
+    try {
+      // Clone the rendered content so html2pdf doesn't mutate the live DOM
+      const clone = contentRef.current.cloneNode(true) as HTMLElement;
+      // Derive PDF filename from original filename (.md → .pdf)
+      const pdfFilename = currentFile.original_filename.replace(/\.md$/i, '') + '.pdf';
+
+      const options = {
+        filename: pdfFilename,
+        margin: [15, 15, 15, 15] as [number, number, number, number],  // mm
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+      };
+
+      await html2pdf().set(options).from(clone).save();
+    } catch (e: any) {
+      console.error('PDF generation failed:', e);
+    } finally {
+      setDownloading(false);
+    }
+  }, [currentFile]);
 
   const isMarkdown =
     currentFile?.mime_type === 'text/markdown' ||
@@ -209,24 +265,13 @@ export const ReportViewerPanel = () => {
           {currentFile && (
             <>
               <Tooltip title="Open in new tab">
-                <IconButton
-                  size="small"
-                  component="a"
-                  href={resolveDownloadUrl(currentFile.download_url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                <IconButton size="small" onClick={handleOpenInNewTab}>
                   <OpenInNewIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Download">
-                <IconButton
-                  size="small"
-                  component="a"
-                  href={resolveDownloadUrl(currentFile.download_url)}
-                  download={currentFile.original_filename}
-                >
-                  <DownloadIcon fontSize="small" />
+              <Tooltip title="Download PDF">
+                <IconButton size="small" onClick={handleDownload} disabled={downloading || loading}>
+                  {downloading ? <CircularProgress size={18} /> : <DownloadIcon fontSize="small" />}
                 </IconButton>
               </Tooltip>
             </>
@@ -250,6 +295,7 @@ export const ReportViewerPanel = () => {
           {!loading && !error && content && (
             isMarkdown ? (
               <Box
+                ref={contentRef}
                 sx={{
                   '& h1, & h2, & h3': { mt: 2, mb: 1 },
                   '& h1': { fontSize: '1.6rem', borderBottom: '1px solid #eee', pb: 0.5 },
