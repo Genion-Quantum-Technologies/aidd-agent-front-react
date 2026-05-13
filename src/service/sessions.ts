@@ -117,4 +117,14 @@ export const sessionService = {
       `/projects/${projectId}/sessions/${sessionId}/files/${fileId}`
     );
   },
+
+  getActiveTasks: async (
+    projectId: string,
+    sessionId: string,
+  ): Promise<import('../store/taskStore').TaskState[]> => {
+    const { data } = await apiClient.get<{ tasks: import('../store/taskStore').TaskState[] }>(
+      `/projects/${projectId}/sessions/${sessionId}/active-tasks`
+    );
+    return data.tasks;
+  },
 };

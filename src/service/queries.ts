@@ -78,3 +78,13 @@ export const useFiles = (projectId: string | null, sessionId: string | null) => 
     enabled: !!projectId && !!sessionId,
   });
 };
+
+export const useActiveTasks = (projectId?: string | null, sessionId?: string | null) => {
+  return useQuery({
+    queryKey: ['active-tasks', projectId, sessionId],
+    queryFn: () => sessionService.getActiveTasks(projectId!, sessionId!),
+    enabled: !!projectId && !!sessionId,
+    staleTime: 0,
+    refetchOnWindowFocus: false,  // prevent overwriting SSE-updated progress on window focus
+  });
+};

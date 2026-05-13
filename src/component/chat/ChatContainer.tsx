@@ -6,6 +6,7 @@ import { ChatInput } from './ChatInput';
 import { streamChat, type CreatedFile } from '../../service/chat';
 import { useMessages } from '../../service/queries';
 import { useReportViewer } from '../../context/ReportViewerContext';
+import { useTaskStore } from '../../store/taskStore';
 import type { MessageAttachment } from '../../service/sessions';
 
 interface Message {
@@ -28,6 +29,7 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { openFile } = useReportViewer();
+  const { upsert: upsertTask } = useTaskStore();
 
   // Fetch initial messages when sessionId changes
   const { data: initialMessages, isLoading: isFetchingMessages } = useMessages(projectId || null, sessionId || null);
@@ -138,6 +140,20 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
         onTitleUpdated: () => {
           queryClient.invalidateQueries({ queryKey: ['sessions', projectId] });
         },
+        onTaskAccepted: ({ task_id, target }) => {
+          // Immediately show a pending card in the right panel so the user
+          // sees feedback before the first SSE progress event arrives.
+          upsertTask({
+            task_id,
+            target,
+            status: 'pending',
+            percent: 0,
+            phase: '',
+            desc: 'Accepted, waiting to start...',
+            kind: 'target_discovery',
+            started_at: new Date().toISOString(),
+          });
+        },
         onDone: () => {
           setLocalMessages((prev) => 
             prev.map((msg) => 
@@ -149,17 +165,41 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
           setIsStreaming(false);
           queryClient.invalidateQueries({ queryKey: ['messages', projectId ?? null, sessionId ?? null] });
         },
-        onError: (error) => {
+        onError: (error, isAbort) => {
+          if (isAbort) {
+            // User-initiated abort — just mark streaming done.
+            setLocalMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === aiMessageId ? { ...msg, isThinking: false } : msg
+              )
+            );
+            setIsStreaming(false);
+            return;
+          }
           console.error('Chat error:', error);
-          setLocalMessages((prev) => 
-            prev.map((msg) => 
-              msg.id === aiMessageId 
-                ? { ...msg, content: msg.content || 'An error occurred.', isThinking: false } 
-                : msg
-            )
-          );
+          // Phase 0: try to recover from backend — the message may have been
+          // persisted via asyncio.shield even if the stream was cancelled.
+          queryClient
+            .invalidateQueries({ queryKey: ['messages', projectId ?? null, sessionId ?? null] })
+            .then(() => {
+              const stored = queryClient.getQueryData<Message[]>([
+                'messages', projectId ?? null, sessionId ?? null,
+              ]);
+              const hasStoredAssistant = stored?.some(
+                (m) => m.role === 'assistant' && m.id !== aiMessageId
+              );
+              if (!hasStoredAssistant) {
+                setLocalMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === aiMessageId
+                      ? { ...msg, content: msg.content || 'An error occurred.', isThinking: false }
+                      : msg
+                  )
+                );
+              }
+            });
           setIsStreaming(false);
-        }
+        },
       });
     } catch (error) {
       console.error('Failed to send message:', error);

@@ -13,6 +13,11 @@ export interface CreatedFile {
   download_url: string;
 }
 
+export interface TaskAcceptedInfo {
+  task_id: string;
+  target: string;
+}
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
 export async function streamChat(
@@ -29,8 +34,9 @@ export async function streamChat(
     onCitation: (index: number, url: string, title: string) => void;
     onFileCreated?: (file: CreatedFile) => void;
     onTitleUpdated?: (title: string) => void;
+    onTaskAccepted?: (info: TaskAcceptedInfo) => void;
     onDone: (messageId: string) => void;
-    onError: (error: string) => void;
+    onError: (error: string, isAbort?: boolean) => void;
     signal?: AbortSignal;
   }
 ) {
@@ -94,9 +100,20 @@ export async function streamChat(
             case 'tool_use_start':
               options.onToolStart(event.data.tool_name, event.data.tool_call_id, event.data.args);
               break;
-            case 'tool_use_end':
-              options.onToolEnd(event.data.tool_call_id, event.data.result_summary);
+            case 'tool_use_end': {
+              const summary = event.data.result_summary ?? '';
+              options.onToolEnd(event.data.tool_call_id, summary);
+              // Detect accepted background tasks and notify caller.
+              try {
+                const parsed = JSON.parse(summary.replace(/\.\.\.$/,''));
+                if (parsed.status === 'accepted' && parsed.task_id) {
+                  options.onTaskAccepted?.({ task_id: parsed.task_id, target: parsed.target ?? '' });
+                }
+              } catch {
+                // summary is truncated prose — not JSON, skip
+              }
               break;
+            }
             case 'citation':
               options.onCitation(event.data.index, event.data.url, event.data.title);
               break;
@@ -126,7 +143,7 @@ export async function streamChat(
     }
   } catch (error: any) {
     if (error.name === 'AbortError') {
-      console.log('Stream aborted');
+      options.onError('', true);  // signal abort (user-initiated)
     } else {
       options.onError(error.message || 'Stream error');
     }
