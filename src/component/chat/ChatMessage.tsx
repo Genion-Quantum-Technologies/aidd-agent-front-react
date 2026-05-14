@@ -15,6 +15,9 @@ interface ChatMessageProps {
 
 export const ChatMessage = ({ role, content, isThinking, thinkingContent, attachments }: ChatMessageProps) => {
   const isAi = role === 'ai';
+  // Strip any <thought>...</thought> blocks that leaked from reasoning models
+  // before rendering — acts as a safety net for already-persisted messages.
+  const displayContent = content.replace(/<thought>[\s\S]*?<\/thought>/g, '').trim();
 
   return (
     <Box sx={{ display: 'flex', gap: 2, mb: 3, flexDirection: isAi ? 'row' : 'row-reverse' }}>
@@ -48,8 +51,8 @@ export const ChatMessage = ({ role, content, isThinking, thinkingContent, attach
             }
           }}
         >
-          {content ? (
-            <ReactMarkdown>{content}</ReactMarkdown>
+          {displayContent ? (
+            <ReactMarkdown>{displayContent}</ReactMarkdown>
           ) : (
             isThinking ? <Box sx={{ fontStyle: 'italic', opacity: 0.7, py: 1 }}>Thinking...</Box> : null
           )}
