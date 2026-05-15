@@ -16,6 +16,7 @@ interface Message {
   isThinking?: boolean;
   thinkingContent?: string;
   attachments?: MessageAttachment[];
+  activeProcess?: string;
 }
 
 interface ChatContainerProps {
@@ -86,6 +87,7 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
       content: '',
       isThinking: true,
       thinkingContent: '',
+      activeProcess: undefined,
     };
 
     setLocalMessages((prev) => [...prev, userMessage, initialAiMessage]);
@@ -115,9 +117,24 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
         },
         onToolStart: (name, id, args) => {
           console.log('Tool start:', name, id, args);
+          const formattedName = name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          setLocalMessages((prev) => 
+            prev.map((msg) => 
+              msg.id === aiMessageId 
+                ? { ...msg, activeProcess: `Running ${formattedName}...` } 
+                : msg
+            )
+          );
         },
         onToolEnd: (id, summary) => {
           console.log('Tool end:', id, summary);
+          setLocalMessages((prev) => 
+            prev.map((msg) => 
+              msg.id === aiMessageId 
+                ? { ...msg, activeProcess: undefined } 
+                : msg
+            )
+          );
         },
         onCitation: (index, url, title) => {
           setLocalMessages((prev) => 
@@ -170,12 +187,19 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
             kind: 'target_discovery',
             started_at: new Date().toISOString(),
           });
+          setLocalMessages((prev) => 
+            prev.map((msg) => 
+              msg.id === aiMessageId 
+                ? { ...msg, activeProcess: `Background task started: ${target || 'Target Discovery'}...` } 
+                : msg
+            )
+          );
         },
         onDone: () => {
           setLocalMessages((prev) => 
             prev.map((msg) => 
               msg.id === aiMessageId 
-                ? { ...msg, isThinking: false } 
+                ? { ...msg, isThinking: false, activeProcess: undefined } 
                 : msg
             )
           );
@@ -254,6 +278,7 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
               isThinking={msg.isThinking}
               thinkingContent={msg.thinkingContent}
               attachments={msg.attachments}
+              activeProcess={msg.activeProcess}
             />
           ))
         )}

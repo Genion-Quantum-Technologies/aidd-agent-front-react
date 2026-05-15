@@ -1,4 +1,4 @@
-import { Box, Avatar, Paper, Stack } from '@mui/material';
+import { Box, Avatar, Paper, Stack, CircularProgress } from '@mui/material';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import PersonIcon from '@mui/icons-material/Person';
 import ReactMarkdown from 'react-markdown';
@@ -11,9 +11,10 @@ interface ChatMessageProps {
   isThinking?: boolean;
   thinkingContent?: string;
   attachments?: MessageAttachment[];
+  activeProcess?: string;
 }
 
-export const ChatMessage = ({ role, content, isThinking, thinkingContent, attachments }: ChatMessageProps) => {
+export const ChatMessage = ({ role, content, isThinking, thinkingContent, attachments, activeProcess }: ChatMessageProps) => {
   const isAi = role === 'ai';
   // Strip any <thought>...</thought> blocks that leaked from reasoning models
   // before rendering — acts as a safety net for already-persisted messages.
@@ -21,10 +22,31 @@ export const ChatMessage = ({ role, content, isThinking, thinkingContent, attach
 
   return (
     <Box sx={{ display: 'flex', gap: 2, mb: 3, flexDirection: isAi ? 'row' : 'row-reverse' }}>
-      <Avatar sx={{ bgcolor: isAi ? 'primary.main' : 'secondary.main', width: 40, height: 40 }}>
-        {isAi ? <SmartToyIcon /> : <PersonIcon />}
-      </Avatar>
+      <Box sx={{ position: 'relative', width: 40, height: 40 }}>
+        <Avatar sx={{ bgcolor: isAi ? 'primary.main' : 'secondary.main', width: 40, height: 40 }}>
+          {isAi ? <SmartToyIcon /> : <PersonIcon />}
+        </Avatar>
+        {isAi && isThinking && (
+          <CircularProgress 
+            size={48} 
+            thickness={2}
+            sx={{ 
+              position: 'absolute', 
+              top: -4, 
+              left: -4, 
+              zIndex: 1,
+              color: 'primary.light'
+            }} 
+          />
+        )}
+      </Box>
       <Box sx={{ maxWidth: '80%', display: 'flex', flexDirection: 'column', gap: 1 }}>
+        {isAi && activeProcess && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'primary.main', fontSize: '0.85rem', px: 1, pt: 0.5 }}>
+            <CircularProgress size={12} color="inherit" />
+            <Box component="span" sx={{ fontStyle: 'italic', opacity: 0.9 }}>{activeProcess}</Box>
+          </Box>
+        )}
         <Paper
           elevation={1}
           sx={{
