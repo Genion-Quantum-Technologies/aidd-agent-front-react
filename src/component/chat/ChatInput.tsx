@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { Box, TextField, IconButton, CircularProgress } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
+import StopIcon from '@mui/icons-material/Stop';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
+  onStop?: () => void;
   disabled?: boolean;
-  isLoading?: boolean;
+  isStreaming?: boolean;
 }
 
-export const ChatInput = ({ onSend, disabled, isLoading }: ChatInputProps) => {
+export const ChatInput = ({ onSend, onStop, disabled, isStreaming }: ChatInputProps) => {
   const [input, setInput] = useState('');
 
   const handleSend = () => {
@@ -21,7 +23,9 @@ export const ChatInput = ({ onSend, disabled, isLoading }: ChatInputProps) => {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      if (!isStreaming && !disabled) {
+        handleSend();
+      }
     }
   };
 
@@ -47,13 +51,13 @@ export const ChatInput = ({ onSend, disabled, isLoading }: ChatInputProps) => {
       <Box sx={{ pb: 0.5 }}>
         <IconButton 
           color="primary" 
-          onClick={handleSend} 
-          disabled={!input.trim() || disabled}
+          onClick={isStreaming ? onStop : handleSend} 
+          disabled={(!input.trim() && !isStreaming) || disabled}
           sx={{
-            bgcolor: 'primary.main',
+            bgcolor: isStreaming ? 'error.main' : 'primary.main',
             color: 'white',
             '&:hover': {
-              bgcolor: 'primary.dark',
+              bgcolor: isStreaming ? 'error.dark' : 'primary.dark',
             },
             '&.Mui-disabled': {
               bgcolor: 'action.disabledBackground',
@@ -61,7 +65,7 @@ export const ChatInput = ({ onSend, disabled, isLoading }: ChatInputProps) => {
             }
           }}
         >
-          {isLoading ? <CircularProgress size={24} color="inherit" /> : <SendIcon />}
+          {isStreaming ? <StopIcon /> : <SendIcon />}
         </IconButton>
       </Box>
     </Box>

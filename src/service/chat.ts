@@ -149,3 +149,18 @@ export async function streamChat(
     }
   }
 }
+
+export async function stopChat(sessionId: string): Promise<void> {
+  const token = localStorage.getItem('token');
+  const response = await fetch(`${API_BASE}/chat/stop`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to stop chat');
+  }
+}

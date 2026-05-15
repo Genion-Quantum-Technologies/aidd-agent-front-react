@@ -3,7 +3,7 @@ import { Box, CircularProgress } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
-import { streamChat, type CreatedFile } from '../../service/chat';
+import { streamChat, stopChat, type CreatedFile } from '../../service/chat';
 import { useMessages } from '../../service/queries';
 import { useReportViewer } from '../../context/ReportViewerContext';
 import { useTaskStore } from '../../store/taskStore';
@@ -28,6 +28,7 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { openFile } = useReportViewer();
   const { upsert: upsertTask } = useTaskStore();
 
@@ -51,11 +52,26 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
     scrollToBottom();
   }, [localMessages]);
 
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsStreaming(false);
+
+      if (sessionId) {
+        stopChat(sessionId).catch(console.error);
+      }
+    }
+  };
+
   const handleSend = async (content: string) => {
     if (!projectId || !sessionId) {
       console.warn("No project or session ID available to send message.");
       return;
     }
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -78,6 +94,7 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
     try {
       await streamChat(sessionId, content, {
         projectId,
+        signal: abortController.signal,
         onDelta: (text) => {
           setLocalMessages((prev) => 
             prev.map((msg) => 
@@ -167,11 +184,9 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
         },
         onError: (error, isAbort) => {
           if (isAbort) {
-            // User-initiated abort — just mark streaming done.
+            // User-initiated abort — rollback context to previous turn
             setLocalMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === aiMessageId ? { ...msg, isThinking: false } : msg
-              )
+              prev.filter((msg) => msg.id !== aiMessageId && msg.id !== userMessage.id)
             );
             setIsStreaming(false);
             return;
@@ -204,6 +219,10 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
     } catch (error) {
       console.error('Failed to send message:', error);
       setIsStreaming(false);
+    } finally {
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
     }
   };
 
@@ -240,7 +259,12 @@ export const ChatContainer = ({ projectId, sessionId }: ChatContainerProps) => {
         )}
         <div ref={messagesEndRef} />
       </Box>
-      <ChatInput onSend={handleSend} disabled={isStreaming || !projectId || !sessionId} isLoading={isStreaming} />
+      <ChatInput 
+        onSend={handleSend} 
+        onStop={handleStop}
+        disabled={!projectId || !sessionId} 
+        isStreaming={isStreaming} 
+      />
     </Box>
   );
 };
